@@ -4,11 +4,128 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
+from pathlib import Path
 
 import numpy as np
 
+from openclaw_turboquant.context_engine import ContextStore
 from openclaw_turboquant.quantizer import TurboQuantMSE, TurboQuantProd
+
+
+def _default_store_path() -> str:
+    """Return the default store path using $OPENCLAW_SESSION_ID if set."""
+    session_id = os.environ.get("OPENCLAW_SESSION_ID", "default")
+    base = Path(os.environ.get("OPENCLAW_MEMORY_DIR", Path.home() / ".openclaw" / "memory"))
+    return str(base / f"turboquant-{session_id}")
+
+
+def cmd_ingest(args: argparse.Namespace) -> None:
+    """Add a single message embedding to the persistent context store."""
+    store_path = Path(args.store)
+    embedding = np.load(args.embedding).astype(np.float64)
+    if embedding.ndim > 1:
+        embedding = embedding[0]
+
+    # Load existing store or create a new one
+    if store_path.is_dir() and (store_path / "config.json").exists():
+        store = ContextStore.load(store_path)
+    else:
+        if args.dim is None:
+            dim = int(embedding.shape[0])
+        else:
+            dim = args.dim
+        store = ContextStore(d=dim, bit_width=args.bit_width, seed=args.seed)
+
+    metadata: dict[str, object] = {}
+    if args.metadata:
+        metadata = json.loads(args.metadata)
+
+    store.ingest(args.id, embedding, args.text, metadata=metadata)
+    store.save(store_path)
+
+    print(json.dumps({
+        "action": "ingest",
+        "entry_id": args.id,
+        "store_size": store.size,
+        "store_path": str(store_path),
+        "ok": True,
+    }))
+
+
+def cmd_assemble(args: argparse.Namespace) -> None:
+    """Retrieve budget-aware context from the persistent store."""
+    store_path = Path(args.store)
+    if not store_path.is_dir():
+        print(json.dumps({"error": f"Store not found: {store_path}"}))
+        raise SystemExit(1)
+
+    query = np.load(args.query).astype(np.float64)
+    if query.ndim > 1:
+        query = query[0]
+
+    store = ContextStore.load(store_path)
+    messages = store.assemble_context(query, token_budget=args.token_budget)
+
+    for msg in messages:
+        score = msg["metadata"].pop("relevance_score", None)
+        entry_id = msg["metadata"].pop("entry_id", None)
+        print(json.dumps({
+            "role": msg["role"],
+            "content": msg["content"],
+            "entry_id": entry_id,
+            "score": round(score, 6) if score is not None else None,
+            **msg["metadata"],
+        }, ensure_ascii=False))
+
+
+def cmd_compact(args: argparse.Namespace) -> None:
+    """Remove least-relevant entries from the persistent store."""
+    store_path = Path(args.store)
+    if not store_path.is_dir():
+        print(json.dumps({"error": f"Store not found: {store_path}"}))
+        raise SystemExit(1)
+
+    store = ContextStore.load(store_path)
+    before = store.size
+
+    query: np.ndarray | None = None
+    if args.query:
+        query = np.load(args.query).astype(np.float64)
+        if query.ndim > 1:
+            query = query[0]
+
+    removed = store.compact(keep_ratio=args.keep_ratio, query_embedding=query)
+    store.save(store_path)
+
+    print(json.dumps({
+        "action": "compact",
+        "before": before,
+        "after": store.size,
+        "removed": removed,
+        "store_path": str(store_path),
+        "ok": True,
+    }))
+
+
+def cmd_store_info(args: argparse.Namespace) -> None:
+    """Display statistics about a persistent context store."""
+    store_path = Path(args.store)
+    if not store_path.is_dir():
+        print(json.dumps({"error": f"Store not found: {store_path}"}))
+        raise SystemExit(1)
+
+    store = ContextStore.load(store_path)
+    mem = store.memory_estimate_bytes()
+    print(json.dumps({
+        "path": str(store_path.resolve()),
+        "size": store.size,
+        "dim": store.d,
+        "bit_width": store.bit_width,
+        "memory_bytes": mem,
+        "memory_kb": round(mem / 1024, 2),
+    }))
 
 
 def cmd_benchmark(args: argparse.Namespace) -> None:
@@ -129,7 +246,35 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="openclaw-turboquant")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    # benchmark
+    # ── ingest ────────────────────────────────────────────────────────
+    p_ing = sub.add_parser("ingest", help="Add a message embedding to the context store")
+    p_ing.add_argument("--store", default=_default_store_path(),
+                       help="Path to the context store directory (default: ~/.openclaw/memory/turboquant-$OPENCLAW_SESSION_ID)")
+    p_ing.add_argument("--id", required=True, dest="id", help="Unique entry identifier")
+    p_ing.add_argument("--text", required=True, help="Raw text content for this entry")
+    p_ing.add_argument("--embedding", required=True, help="Path to .npy embedding vector")
+    p_ing.add_argument("--dim", type=int, default=None, help="Embedding dimension (required for new stores)")
+    p_ing.add_argument("--bit-width", type=int, default=4)
+    p_ing.add_argument("--seed", type=int, default=42)
+    p_ing.add_argument("--metadata", default=None, help="Optional JSON string of extra metadata")
+
+    # ── assemble ──────────────────────────────────────────────────────
+    p_asm = sub.add_parser("assemble", help="Assemble context within a token budget")
+    p_asm.add_argument("--store", default=_default_store_path())
+    p_asm.add_argument("--query", required=True, help="Path to .npy query embedding")
+    p_asm.add_argument("--token-budget", type=int, default=4096)
+
+    # ── compact ───────────────────────────────────────────────────────
+    p_cmp = sub.add_parser("compact", help="Remove least-relevant entries from the store")
+    p_cmp.add_argument("--store", default=_default_store_path())
+    p_cmp.add_argument("--query", default=None, help="Path to .npy query embedding for relevance-based compaction")
+    p_cmp.add_argument("--keep-ratio", type=float, default=0.5)
+
+    # ── store-info ────────────────────────────────────────────────────
+    p_info = sub.add_parser("store-info", help="Show statistics for a context store")
+    p_info.add_argument("--store", default=_default_store_path())
+
+    # ── benchmark ─────────────────────────────────────────────────────
     p_bench = sub.add_parser("benchmark", help="Run distortion benchmark")
     p_bench.add_argument("--dim", type=int, default=128)
     p_bench.add_argument("--bit-width", type=int, default=4)
@@ -152,7 +297,15 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "benchmark":
+    if args.command == "ingest":
+        cmd_ingest(args)
+    elif args.command == "assemble":
+        cmd_assemble(args)
+    elif args.command == "compact":
+        cmd_compact(args)
+    elif args.command == "store-info":
+        cmd_store_info(args)
+    elif args.command == "benchmark":
         cmd_benchmark(args)
     elif args.command == "compress":
         cmd_compress(args)
