@@ -1,0 +1,34 @@
+{
+  "id": "turboquant-context-engine",
+  "name": "TurboQuant Context Engine",
+  "description": "Near-optimal vector quantization context engine using TurboQuant for compressed context retrieval.",
+  "version": "0.1.0",
+  "kind": "context-engine",
+  "skills": ["skills/turboquant"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "bitWidth": {
+        "type": "integer",
+        "default": 4,
+        "description": "Bits per coordinate for quantization (2-8)."
+      },
+      "embeddingDim": {
+        "type": "integer",
+        "default": 1536,
+        "description": "Embedding dimension."
+      },
+      "topK": {
+        "type": "integer",
+        "default": 10,
+        "description": "Number of context entries to retrieve per assembly."
+      },
+      "compactKeepRatio": {
+        "type": "number",
+        "default": 0.5,
+        "description": "Fraction of entries to keep during compaction."
+      }
+    }
+  }
+}

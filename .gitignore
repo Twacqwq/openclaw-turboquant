@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Ruff
+.ruff_cache/
+
+# pytest
+.pytest_cache/
+.benchmarks/
+
+# mypy
+.mypy_cache/
+
+# Node (plugin)
+plugin/node_modules/
+plugin/dist/
+
+# OS
+.DS_Store

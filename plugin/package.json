@@ -1,0 +1,9 @@
+{
+  "name": "openclaw-turboquant-plugin",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
