@@ -8,13 +8,60 @@
 
 **分支**: `feature/hucc`  
 **基础版本**: `f96fb77` (main — feat: implement TurboQuant vector quantization with OpenClaw integration)  
-**变更提交数**: 3  
-**净增代码行**: +1,311 行（6 个文件）  
+**变更提交数**: 4  
+**净增代码行**: +2,315 行（9 个文件）  
 **测试状态**: ✅ 35/35 通过
 
 ---
 
 ## 变更详情
+
+### 🆕 feat — help 指令与双语 CLI 操作手册
+
+**提交**: `5eacbc3`  
+**日期**: 2026-03-28  
+**影响文件**: 3 个文件，+1,004 行
+
+#### `src/openclaw_turboquant/cli.py` (+164 行，修复 1 处)
+
+**新增：`help` 子命令**
+
+| 内容 | 说明 |
+|------|------|
+| `cmd_help(args)` | 新增函数，输出所有指令摘要或单条指令的完整帮助 |
+| `help` subparser | 在 `main()` 中注册，支持 `help [COMMAND]` 可选参数 |
+| dispatcher | `elif args.command == "help": cmd_help(args)` |
+| bug fix | 修复 `cmd_benchmark` 函数头缺失导致函数体悬挂在 `cmd_help` 之后的问题 |
+
+`cmd_help` 内置 `COMMANDS` 字典，涵盖全部 7 条指令（ingest / assemble / compact / store-info / compress / retrieve / benchmark），每条记录包含：
+- `summary`：一句话描述
+- `usage`：完整语法
+- `args`：参数列表（required / optional 标注）
+- `output`：输出示例
+- `example`：可复制的完整命令示例
+
+**终端效果示例**：
+```
+openclaw-turboquant help          # 列出所有指令
+openclaw-turboquant help ingest   # 查看 ingest 完整说明
+```
+
+#### `docs/CLI_MANUAL.md` (新建，+400 行)
+
+英文版 CLI 指令集操作手册，涵盖：
+- 快速索引表（8 条指令）
+- 每条指令：功能说明、语法、参数表、输出格式、示例
+- 环境变量说明（`OPENCLAW_SESSION_ID` / `OPENCLAW_MEMORY_DIR`）
+- 退出码说明
+- OpenClaw Skill 生命周期示意图
+
+#### `docs/CLI_MANUAL_ZH.md` (新建，+441 行)
+
+中文版 CLI 指令集操作手册，内容与英文版对应，额外新增：
+- 典型使用场景三则（OpenClaw 集成 / 离线批量处理 / 量化质量评估）
+- 完整中文参数说明及示例
+
+---
 
 ### 🆕 feat — 持久化上下文存储与 OpenClaw Memory 集成
 
