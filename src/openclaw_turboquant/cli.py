@@ -32,10 +32,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     if store_path.is_dir() and (store_path / "config.json").exists():
         store = ContextStore.load(store_path)
     else:
-        if args.dim is None:
-            dim = int(embedding.shape[0])
-        else:
-            dim = args.dim
+        dim = int(embedding.shape[0]) if args.dim is None else args.dim
         store = ContextStore(d=dim, bit_width=args.bit_width, seed=args.seed)
 
     metadata: dict[str, object] = {}
@@ -131,21 +128,36 @@ def cmd_store_info(args: argparse.Namespace) -> None:
 def cmd_help(args: argparse.Namespace) -> None:
     """Print detailed help for a specific command or list all commands."""
 
-    COMMANDS: dict[str, dict[str, object]] = {
+    commands: dict[str, dict[str, object]] = {
         "ingest": {
             "summary": "Add a message embedding to the persistent context store",
             "usage": "openclaw-turboquant ingest --id ID --text TEXT --embedding FILE [options]",
             "args": [
-                ("--id",          "required", "Unique identifier for this entry (e.g. 'turn_001')"),
-                ("--text",        "required", "Raw text content to store alongside the vector"),
-                ("--embedding",   "required", "Path to a .npy file containing the embedding vector"),
-                ("--store",       "optional", "Store directory path (default: ~/.openclaw/memory/turboquant-$OPENCLAW_SESSION_ID)"),
-                ("--dim",         "optional", "Embedding dimension — required only when creating a new store"),
-                ("--bit-width",   "optional", "Bits per coordinate for quantization (1–8, default: 4)"),
-                ("--seed",        "optional", "Random seed for reproducibility (default: 42)"),
-                ("--metadata",    "optional", "JSON string of extra metadata, e.g. '{\"role\":\"user\"}'"),
+                ("--id", "required", "Unique identifier for this entry (e.g. 'turn_001')"),
+                ("--text", "required", "Raw text content to store alongside the vector"),
+                ("--embedding", "required", "Path to .npy file with the embedding vector"),
+                (
+                    "--store",
+                    "optional",
+                    "Store directory path (default: auto from session)",
+                ),
+                (
+                    "--dim",
+                    "optional",
+                    "Embedding dimension - required only when creating a new store",
+                ),
+                ("--bit-width", "optional", "Bits per coordinate (1-8, default: 4)"),
+                ("--seed", "optional", "Random seed for reproducibility (default: 42)"),
+                (
+                    "--metadata",
+                    "optional",
+                    "JSON string of extra metadata, e.g. '{\"role\":\"user\"}'",
+                ),
             ],
-            "output": '{"action":"ingest","entry_id":"turn_001","store_size":5,"store_path":"...","ok":true}',
+            "output": (
+                '{"action":"ingest","entry_id":"turn_001",'
+                '"store_size":5,"store_path":"...","ok":true}'
+            ),
             "example": (
                 "uv run openclaw-turboquant ingest \\\n"
                 "  --id turn_001 \\\n"
@@ -157,9 +169,9 @@ def cmd_help(args: argparse.Namespace) -> None:
             "summary": "Retrieve the most relevant context entries within a token budget",
             "usage": "openclaw-turboquant assemble --query FILE [options]",
             "args": [
-                ("--query",        "required", "Path to a .npy query embedding vector"),
-                ("--store",        "optional", "Store directory path (default: auto from session)"),
-                ("--token-budget", "optional", "Maximum tokens for assembled context (default: 4096)"),
+                ("--query", "required", "Path to a .npy query embedding vector"),
+                ("--store", "optional", "Store directory path (default: auto from session)"),
+                ("--token-budget", "optional", "Max tokens for assembled context (default: 4096)"),
             ],
             "output": (
                 '{"role":"context","content":"...","entry_id":"turn_003","score":0.912}\n'
@@ -175,11 +187,18 @@ def cmd_help(args: argparse.Namespace) -> None:
             "summary": "Remove least-relevant entries from the store to free memory",
             "usage": "openclaw-turboquant compact [options]",
             "args": [
-                ("--store",       "optional", "Store directory path (default: auto from session)"),
-                ("--query",       "optional", "Query .npy for relevance-based compaction; if omitted keeps newest entries"),
-                ("--keep-ratio",  "optional", "Fraction of entries to keep (0.0–1.0, default: 0.5)"),
+                ("--store", "optional", "Store directory path (default: auto from session)"),
+                (
+                    "--query",
+                    "optional",
+                    "Query .npy for relevance-based compaction; omit to keep newest",
+                ),
+                ("--keep-ratio", "optional", "Fraction of entries to keep (0.0-1.0, default: 0.5)"),
             ],
-            "output": '{"action":"compact","before":20,"after":10,"removed":10,"store_path":"...","ok":true}',
+            "output": (
+                '{"action":"compact","before":20,"after":10,'
+                '"removed":10,"store_path":"...","ok":true}'
+            ),
             "example": (
                 "uv run openclaw-turboquant compact \\\n"
                 "  --query /tmp/query.npy \\\n"
@@ -192,17 +211,20 @@ def cmd_help(args: argparse.Namespace) -> None:
             "args": [
                 ("--store", "optional", "Store directory path (default: auto from session)"),
             ],
-            "output": '{"path":"...","size":15,"dim":1536,"bit_width":4,"memory_bytes":14400,"memory_kb":14.06}',
+            "output": (
+                '{"path":"...","size":15,"dim":1536,'
+                '"bit_width":4,"memory_bytes":14400,"memory_kb":14.06}'
+            ),
             "example": "uv run openclaw-turboquant store-info",
         },
         "compress": {
             "summary": "Batch-compress a .npy file of embeddings into a compressed index file",
             "usage": "openclaw-turboquant compress --input FILE --output FILE [options]",
             "args": [
-                ("--input",     "required", "Path to .npy file (shape: [N, d])"),
-                ("--output",    "required", "Output path for the compressed .npz index"),
+                ("--input", "required", "Path to .npy file (shape: [N, d])"),
+                ("--output", "required", "Output path for the compressed .npz index"),
                 ("--bit-width", "optional", "Bits per coordinate (default: 4)"),
-                ("--seed",      "optional", "Random seed (default: 42)"),
+                ("--seed", "optional", "Random seed (default: 42)"),
             ],
             "output": "Compressed 100 vectors to compressed.npz",
             "example": (
@@ -216,10 +238,14 @@ def cmd_help(args: argparse.Namespace) -> None:
             "summary": "Retrieve top-k similar vectors from a compressed index file",
             "usage": "openclaw-turboquant retrieve --query FILE --index FILE [options]",
             "args": [
-                ("--query",  "required", "Path to .npy query vector"),
-                ("--index",  "required", "Path to .npz index file produced by compress"),
-                ("--top-k",  "optional", "Number of results to return (default: 5)"),
-                ("--seed",   "optional", "Random seed — must match the seed used in compress (default: 42)"),
+                ("--query", "required", "Path to .npy query vector"),
+                ("--index", "required", "Path to .npz index file produced by compress"),
+                ("--top-k", "optional", "Number of results to return (default: 5)"),
+                (
+                    "--seed",
+                    "optional",
+                    "Random seed - must match the seed used in compress (default: 42)",
+                ),
             ],
             "output": '{"index":8,"score":11.166}\n{"index":3,"score":4.332}',
             "example": (
@@ -233,50 +259,58 @@ def cmd_help(args: argparse.Namespace) -> None:
             "summary": "Run a distortion benchmark to measure quantization quality and speed",
             "usage": "openclaw-turboquant benchmark [options]",
             "args": [
-                ("--dim",       "optional", "Vector dimension (default: 128)"),
+                ("--dim", "optional", "Vector dimension (default: 128)"),
                 ("--bit-width", "optional", "Bits per coordinate (default: 4)"),
                 ("--n-vectors", "optional", "Number of test vectors (default: 100)"),
-                ("--seed",      "optional", "Random seed (default: 42)"),
+                ("--seed", "optional", "Random seed (default: 42)"),
             ],
-            "output": "TurboQuant Benchmark: d=128, b=4, n=100\nMSE distortion: 0.006\nCompression ratio: 6.3x",
-            "example": "uv run openclaw-turboquant benchmark --dim 128 --bit-width 4 --n-vectors 500",
+            "output": (
+                "TurboQuant Benchmark: d=128, b=4, n=100\n"
+                "MSE distortion: 0.006\nCompression ratio: 6.3x"
+            ),
+            "example": (
+                "uv run openclaw-turboquant benchmark \\\n"
+                "  --dim 128 --bit-width 4 --n-vectors 500"
+            ),
         },
     }
 
-    SEP = "─" * 70
+    sep = "\u2500" * 70
 
     def print_command(name: str, info: dict[str, object]) -> None:
-        print(f"\n{SEP}")
+        print(f"\n{sep}")
         print(f"  COMMAND:  {name}")
         print(f"  {info['summary']}")
-        print(SEP)
+        print(sep)
         print(f"\n  Usage:\n    {info['usage']}\n")
         print("  Arguments:")
-        for flag, req, desc in info["args"]:  # type: ignore[misc]
+        args = info["args"]
+        assert isinstance(args, list)
+        for flag, req, desc in args:
             tag = "[required]" if req == "required" else "[optional]"
             print(f"    {flag:<18} {tag:<12} {desc}")
-        print(f"\n  Output:\n    {info['output']}\n")  # type: ignore[str-bytes-safe]
-        print(f"  Example:\n    {info['example']}")  # type: ignore[str-bytes-safe]
+        print(f"\n  Output:\n    {info['output']}\n")
+        print(f"  Example:\n    {info['example']}")
 
     cmd = getattr(args, "help_command", None)
 
     if cmd:
-        if cmd not in COMMANDS:
-            print(f"Unknown command: '{cmd}'. Available: {', '.join(COMMANDS)}")
+        if cmd not in commands:
+            print(f"Unknown command: '{cmd}'. Available: {', '.join(commands)}")
             raise SystemExit(1)
-        print_command(cmd, COMMANDS[cmd])
+        print_command(cmd, commands[cmd])
     else:
         # List all commands
-        print("\nopenclaw-turboquant — TurboQuant CLI")
+        print("\nopenclaw-turboquant -- TurboQuant CLI")
         print("=" * 70)
         print("\n  Context store commands (OpenClaw memory integration):")
         for name in ("ingest", "assemble", "compact", "store-info"):
-            print(f"    {name:<16}  {COMMANDS[name]['summary']}")
+            print(f"    {name:<16}  {commands[name]['summary']}")
         print("\n  Batch file commands:")
         for name in ("compress", "retrieve"):
-            print(f"    {name:<16}  {COMMANDS[name]['summary']}")
+            print(f"    {name:<16}  {commands[name]['summary']}")
         print("\n  Utility:")
-        print(f"    {'benchmark':<16}  {COMMANDS['benchmark']['summary']}")
+        print(f"    {'benchmark':<16}  {commands['benchmark']['summary']}")
         print(f"    {'help':<16}  Show this help, or detailed help for a specific command")
         print("\n  Run 'openclaw-turboquant help <command>' for details on any command.")
         print()
@@ -402,12 +436,17 @@ def main() -> None:
 
     # ── ingest ────────────────────────────────────────────────────────
     p_ing = sub.add_parser("ingest", help="Add a message embedding to the context store")
-    p_ing.add_argument("--store", default=_default_store_path(),
-                       help="Path to the context store directory (default: ~/.openclaw/memory/turboquant-$OPENCLAW_SESSION_ID)")
+    p_ing.add_argument(
+        "--store",
+        default=_default_store_path(),
+        help="Store directory path (default: auto from session)",
+    )
     p_ing.add_argument("--id", required=True, dest="id", help="Unique entry identifier")
     p_ing.add_argument("--text", required=True, help="Raw text content for this entry")
     p_ing.add_argument("--embedding", required=True, help="Path to .npy embedding vector")
-    p_ing.add_argument("--dim", type=int, default=None, help="Embedding dimension (required for new stores)")
+    p_ing.add_argument(
+        "--dim", type=int, default=None, help="Embedding dimension (required for new stores)",
+    )
     p_ing.add_argument("--bit-width", type=int, default=4)
     p_ing.add_argument("--seed", type=int, default=42)
     p_ing.add_argument("--metadata", default=None, help="Optional JSON string of extra metadata")
@@ -421,7 +460,9 @@ def main() -> None:
     # ── compact ───────────────────────────────────────────────────────
     p_cmp = sub.add_parser("compact", help="Remove least-relevant entries from the store")
     p_cmp.add_argument("--store", default=_default_store_path())
-    p_cmp.add_argument("--query", default=None, help="Path to .npy query embedding for relevance-based compaction")
+    p_cmp.add_argument(
+        "--query", default=None, help="Query .npy for relevance-based compaction",
+    )
     p_cmp.add_argument("--keep-ratio", type=float, default=0.5)
 
     # ── store-info ────────────────────────────────────────────────────

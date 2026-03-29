@@ -17,7 +17,7 @@ def beta_pdf(x: float, d: int) -> float:
     if abs(x) >= 1.0:
         return 0.0
     coeff = float(gamma_fn(d / 2)) / (np.sqrt(np.pi) * float(gamma_fn((d - 1) / 2)))
-    return coeff * (1.0 - x * x) ** ((d - 3) / 2)
+    return float(coeff * (1.0 - x * x) ** ((d - 3) / 2))
 
 
 class LloydMaxCodebook:

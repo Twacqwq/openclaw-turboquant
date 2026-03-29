@@ -35,6 +35,7 @@ dev = [
     "pytest>=9.0.2",
     "pytest-benchmark>=5.2.3",
     "ruff>=0.15.8",
+    "scipy-stubs>=1.17.1.0",
 ]
 
 [tool.ruff]
