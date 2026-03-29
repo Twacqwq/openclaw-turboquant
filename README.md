@@ -1,5 +1,7 @@
 # openclaw-turboquant
 
+**English** | [简体中文](README.zh-CN.md)
+
 Near-optimal online vector quantization for [OpenClaw](https://openclaw.dev) context compression, based on the **TurboQuant** algorithm from [Google Research](https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/) ([arXiv:2504.19874](https://arxiv.org/abs/2504.19874)).
 
 ## Overview

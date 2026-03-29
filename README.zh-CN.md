@@ -1,5 +1,7 @@
 # openclaw-turboquant
 
+[English](README.md) | **简体中文**
+
 基于Google Research的**TurboQuant**算法，为[OpenClaw](https://openclaw.dev)上下文压缩提供近最优在线向量量化方案。论文：[arXiv:2504.19874](https://arxiv.org/abs/2504.19874)
 
 ## 概览
