@@ -7,7 +7,9 @@ Context Engine plugin.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -224,3 +226,99 @@ class ContextStore:
         # Per entry: (b-1)*d bits for MSE indices + d bits for QJL signs + 64 bits for norms
         bits_per_entry = (self.bit_width - 1) * self.d + self.d + 128
         return (bits_per_entry * self.size + 7) // 8
+
+    # ------------------------------------------------------------------
+    # Persistence — save / load to OpenClaw memory directory
+    # ------------------------------------------------------------------
+
+    def save(self, path: str | Path) -> None:
+        """Persist the store to a directory on disk.
+
+        Creates three files under *path*:
+          - ``config.json``  — quantizer settings (d, bit_width, seed)
+          - ``texts.json``   — {entry_id: {text, metadata}} mapping
+          - ``vectors.npz``  — stacked quantized arrays
+
+        Parameters
+        ----------
+        path : str or Path
+            Directory to write into.  Created if it does not exist.
+        """
+        store_dir = Path(path)
+        store_dir.mkdir(parents=True, exist_ok=True)
+
+        # config
+        config = {"d": self.d, "bit_width": self.bit_width, "seed": None}
+        (store_dir / "config.json").write_text(json.dumps(config, indent=2))
+
+        # texts + metadata
+        texts: dict[str, dict[str, Any]] = {}
+        for eid, entry in self._entries.items():
+            texts[eid] = {"text": entry.text, "metadata": entry.metadata}
+        (store_dir / "texts.json").write_text(json.dumps(texts, ensure_ascii=False, indent=2))
+
+        # quantized arrays
+        if self._entries:
+            ids = list(self._entries.keys())
+            entries_list = [self._entries[k] for k in ids]
+            np.savez_compressed(
+                store_dir / "vectors.npz",
+                entry_ids=np.array(ids),
+                mse_indices=np.array([e.quantized.mse_indices for e in entries_list]),
+                qjl_signs=np.array([e.quantized.qjl_signs for e in entries_list]),
+                residual_norms=np.array([e.quantized.residual_norm for e in entries_list]),
+                norms=np.array([e.quantized.norm for e in entries_list]),
+            )
+        else:
+            # Write an empty marker so load() can recognise a valid but empty store
+            np.savez_compressed(store_dir / "vectors.npz", entry_ids=np.array([], dtype=str))
+
+    @classmethod
+    def load(cls, path: str | Path) -> ContextStore:
+        """Restore a store previously saved with :meth:`save`.
+
+        Parameters
+        ----------
+        path : str or Path
+            Directory written by :meth:`save`.
+
+        Returns
+        -------
+        ContextStore
+            Fully populated store ready for queries.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *path* does not exist or required files are missing.
+        """
+        store_dir = Path(path)
+        if not store_dir.is_dir():
+            raise FileNotFoundError(f"Store directory not found: {store_dir}")
+
+        config = json.loads((store_dir / "config.json").read_text())
+        texts: dict[str, dict[str, Any]] = json.loads((store_dir / "texts.json").read_text())
+
+        store = cls(d=config["d"], bit_width=config["bit_width"], seed=config.get("seed"))
+
+        data = np.load(store_dir / "vectors.npz", allow_pickle=False)
+        ids: list[str] = data["entry_ids"].tolist()
+        if not ids:
+            return store
+
+        for i, eid in enumerate(ids):
+            quantized = ProdQuantized(
+                mse_indices=data["mse_indices"][i],
+                qjl_signs=data["qjl_signs"][i],
+                residual_norm=float(data["residual_norms"][i]),
+                norm=float(data["norms"][i]),
+            )
+            meta = texts.get(eid, {})
+            store._entries[eid] = ContextEntry(
+                entry_id=eid,
+                text=meta.get("text", ""),
+                quantized=quantized,
+                metadata=meta.get("metadata", {}),
+            )
+
+        return store
