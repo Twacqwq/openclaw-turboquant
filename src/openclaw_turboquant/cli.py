@@ -42,13 +42,17 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     store.ingest(args.id, embedding, args.text, metadata=metadata)
     store.save(store_path)
 
-    print(json.dumps({
-        "action": "ingest",
-        "entry_id": args.id,
-        "store_size": store.size,
-        "store_path": str(store_path),
-        "ok": True,
-    }))
+    print(
+        json.dumps(
+            {
+                "action": "ingest",
+                "entry_id": args.id,
+                "store_size": store.size,
+                "store_path": str(store_path),
+                "ok": True,
+            }
+        )
+    )
 
 
 def cmd_assemble(args: argparse.Namespace) -> None:
@@ -68,13 +72,18 @@ def cmd_assemble(args: argparse.Namespace) -> None:
     for msg in messages:
         score = msg["metadata"].pop("relevance_score", None)
         entry_id = msg["metadata"].pop("entry_id", None)
-        print(json.dumps({
-            "role": msg["role"],
-            "content": msg["content"],
-            "entry_id": entry_id,
-            "score": round(score, 6) if score is not None else None,
-            **msg["metadata"],
-        }, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "role": msg["role"],
+                    "content": msg["content"],
+                    "entry_id": entry_id,
+                    "score": round(score, 6) if score is not None else None,
+                    **msg["metadata"],
+                },
+                ensure_ascii=False,
+            )
+        )
 
 
 def cmd_compact(args: argparse.Namespace) -> None:
@@ -96,14 +105,18 @@ def cmd_compact(args: argparse.Namespace) -> None:
     removed = store.compact(keep_ratio=args.keep_ratio, query_embedding=query)
     store.save(store_path)
 
-    print(json.dumps({
-        "action": "compact",
-        "before": before,
-        "after": store.size,
-        "removed": removed,
-        "store_path": str(store_path),
-        "ok": True,
-    }))
+    print(
+        json.dumps(
+            {
+                "action": "compact",
+                "before": before,
+                "after": store.size,
+                "removed": removed,
+                "store_path": str(store_path),
+                "ok": True,
+            }
+        )
+    )
 
 
 def cmd_store_info(args: argparse.Namespace) -> None:
@@ -115,14 +128,18 @@ def cmd_store_info(args: argparse.Namespace) -> None:
 
     store = ContextStore.load(store_path)
     mem = store.memory_estimate_bytes()
-    print(json.dumps({
-        "path": str(store_path.resolve()),
-        "size": store.size,
-        "dim": store.d,
-        "bit_width": store.bit_width,
-        "memory_bytes": mem,
-        "memory_kb": round(mem / 1024, 2),
-    }))
+    print(
+        json.dumps(
+            {
+                "path": str(store_path.resolve()),
+                "size": store.size,
+                "dim": store.d,
+                "bit_width": store.bit_width,
+                "memory_bytes": mem,
+                "memory_kb": round(mem / 1024, 2),
+            }
+        )
+    )
 
 
 def cmd_help(args: argparse.Namespace) -> None:
@@ -151,7 +168,7 @@ def cmd_help(args: argparse.Namespace) -> None:
                 (
                     "--metadata",
                     "optional",
-                    "JSON string of extra metadata, e.g. '{\"role\":\"user\"}'",
+                    'JSON string of extra metadata, e.g. \'{"role":"user"}\'',
                 ),
             ],
             "output": (
@@ -269,8 +286,7 @@ def cmd_help(args: argparse.Namespace) -> None:
                 "MSE distortion: 0.006\nCompression ratio: 6.3x"
             ),
             "example": (
-                "uv run openclaw-turboquant benchmark \\\n"
-                "  --dim 128 --bit-width 4 --n-vectors 500"
+                "uv run openclaw-turboquant benchmark \\\n  --dim 128 --bit-width 4 --n-vectors 500"
             ),
         },
     }
@@ -445,7 +461,10 @@ def main() -> None:
     p_ing.add_argument("--text", required=True, help="Raw text content for this entry")
     p_ing.add_argument("--embedding", required=True, help="Path to .npy embedding vector")
     p_ing.add_argument(
-        "--dim", type=int, default=None, help="Embedding dimension (required for new stores)",
+        "--dim",
+        type=int,
+        default=None,
+        help="Embedding dimension (required for new stores)",
     )
     p_ing.add_argument("--bit-width", type=int, default=4)
     p_ing.add_argument("--seed", type=int, default=42)
@@ -461,7 +480,9 @@ def main() -> None:
     p_cmp = sub.add_parser("compact", help="Remove least-relevant entries from the store")
     p_cmp.add_argument("--store", default=_default_store_path())
     p_cmp.add_argument(
-        "--query", default=None, help="Query .npy for relevance-based compaction",
+        "--query",
+        default=None,
+        help="Query .npy for relevance-based compaction",
     )
     p_cmp.add_argument("--keep-ratio", type=float, default=0.5)
 
@@ -492,9 +513,13 @@ def main() -> None:
 
     # ── help ──────────────────────────────────────────────────────────
     p_hlp = sub.add_parser("help", help="Show detailed help for a command")
-    p_hlp.add_argument("help_command", nargs="?", default=None,
-                       metavar="COMMAND",
-                       help="Command name to describe (omit to list all commands)")
+    p_hlp.add_argument(
+        "help_command",
+        nargs="?",
+        default=None,
+        metavar="COMMAND",
+        help="Command name to describe (omit to list all commands)",
+    )
 
     args = parser.parse_args()
 
