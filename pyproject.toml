@@ -5,7 +5,8 @@ description = "Near-optimal online vector quantization for OpenClaw context comp
 readme = "README.md"
 license = "MIT"
 authors = [
-    { name = "Twacqwq", email = "xiaot.qaq@gmail.com" }
+    { name = "Twacqwq", email = "xiaot.qaq@gmail.com" },
+    { name = "hucc", email = "huccc2551@gmail.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [
