@@ -4,6 +4,15 @@
 
 Near-optimal online vector quantization for [OpenClaw](https://openclaw.dev) context compression, based on the **TurboQuant** algorithm from [Google Research](https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/) ([arXiv:2504.19874](https://arxiv.org/abs/2504.19874)).
 
+## Status
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| Library API | ✅ Ready | Core quantization algorithms fully implemented |
+| CLI | ✅ Ready | `benchmark`, `compress`, `retrieve` commands available |
+| Agent Skill | ✅ Ready | CLI commands can be used independently by agents |
+| Context Engine Plugin | 🚧 WIP | Interface defined, core integration logic not yet implemented |
+
 ## Overview
 
 TurboQuant achieves near-optimal distortion (within ~2.7× of the information-theoretic lower bound) using a simple two-stage pipeline:
@@ -85,7 +94,9 @@ openclaw-turboquant retrieve --store compressed.npz --query query.npy --top-k 5
 
 ## OpenClaw Integration
 
-### Context Engine Plugin
+### Context Engine Plugin (WIP)
+
+> **Note:** The plugin interface is defined but the core integration logic (embedding API calls, Python CLI bridge) is not yet implemented. Contributions welcome!
 
 The `plugin/` directory contains a Context Engine plugin that compresses embeddings during the `ingest → assemble → compact → afterTurn` lifecycle:
 
