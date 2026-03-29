@@ -4,6 +4,15 @@
 
 基于Google Research的**TurboQuant**算法，为[OpenClaw](https://openclaw.dev)上下文压缩提供近最优在线向量量化方案。论文：[arXiv:2504.19874](https://arxiv.org/abs/2504.19874)
 
+## 状态
+
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| 库 API | ✅ 可用 | 核心量化算法已完整实现 |
+| CLI | ✅ 可用 | `benchmark`、`compress`、`retrieve` 命令可用 |
+| Agent Skill | ✅ 可用 | CLI 命令可由 Agent 独立调用 |
+| Context Engine 插件 | 🚧 开发中 | 接口已定义，核心集成逻辑尚未实现 |
+
 ## 概览
 
 TurboQuant 通过简单的两阶段管道实现接近信息论下界2.7倍的近最优失真：
@@ -97,7 +106,9 @@ openclaw-turboquant retrieve --store compressed.npz --query query.npy --top-k 5
 
 ## OpenClaw集成
 
-### 上下文引擎插件
+### 上下文引擎插件（开发中）
+
+> **注意：** 插件接口已定义，但核心集成逻辑（Embedding API 调用、Python CLI 桥接）尚未实现。欢迎贡献！
 
 `plugin/` 目录包含在 `ingest → assemble → compact → afterTurn` 生命周期中压缩嵌入向量的Context Engine插件：
 
